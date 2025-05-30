@@ -1,0 +1,38 @@
+{
+  "name": "patryk-samulewicz/crawl-toolkit",
+  "description": "Universal package for BrightData web scraping and crawling. And making keyword research easier.",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Patryk Samulewicz",
+      "email": "p.samulewicz@senuto.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "CrawlToolkit\\": "src/"
+    }
+  },
+  "require": {
+    "php": "^8.4",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "psr/log": "^3.0",
+    "symfony/css-selector": "^7.2",
+    "symfony/dom-crawler": "^7.2",
+    "ext-libxml": "*",
+    "ext-dom": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0",
+    "phpstan/phpstan": "^1.10"
+  },
+  "config": {
+    "sort-packages": true,
+    "optimize-autoloader": true,
+    "process-timeout": 0
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
