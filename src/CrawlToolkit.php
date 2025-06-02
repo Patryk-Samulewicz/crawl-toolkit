@@ -3,6 +3,7 @@
 namespace CrawlToolkit;
 
 use CrawlToolkit\Service\HtmlCleaner;
+use CrawlToolkit\Service\OpenAiService;
 use Exception;
 use CrawlToolkit\Service\BrightDataService;
 use CrawlToolkit\Service\OpenRouterService;
@@ -21,7 +22,7 @@ use CrawlToolkit\Enum\Language;
 final readonly class CrawlToolkit
 {
     private BrightDataService $brightDataService;
-    private OpenRouterService $openRouterService;
+    private OpenAiService $openAiService;
 
     /**
      * Initializes the CrawlToolkit with required API keys and zones.
@@ -30,14 +31,14 @@ final readonly class CrawlToolkit
      * @param string $brightDataSerpZone Zone for BrightData SERP service
      * @param string $brightDataCrawlKey API key for BrightData Crawler service
      * @param string $brightDataCrawlZone Zone for BrightData Crawler service
-     * @param string $openRouterKey API key for OpenRouter service
+     * @param string $openAiKey API key for OpenAI service
      */
     public function __construct(
         private string $brightDataSerpKey,
         private string $brightDataSerpZone,
         private string $brightDataCrawlKey,
         private string $brightDataCrawlZone,
-        private string $openRouterKey
+        private string $openAiKey
     ) {
         $this->brightDataService = new BrightDataService(
             $this->brightDataSerpKey,
@@ -46,7 +47,7 @@ final readonly class CrawlToolkit
             $this->brightDataCrawlZone,
         );
 
-        $this->openRouterService = new OpenRouterService($this->openRouterKey);
+        $this->openAiService = new OpenAiService($this->openAiKey);
     }
 
     /**
@@ -79,7 +80,7 @@ final readonly class CrawlToolkit
     public function analyzeText(string $keyword, array $texts, Language $language = Language::ENGLISH): array
     {
         try {
-            return $this->openRouterService->analyzeKeyword($keyword, $texts, $language->value);
+            return $this->openAiService->analyzeKeyword($keyword, $texts, $language->value);
         } catch (Exception $e) {
             throw new RuntimeException('Error during text analysis: ' . $e->getMessage());
         }
@@ -169,7 +170,7 @@ final readonly class CrawlToolkit
     public function processConnectionPhraseToContent(string $phrase, string $content, Language $language = Language::ENGLISH): array
     {
         try {
-            return $this->openRouterService->extractPhraseContent($phrase, $content, $language->value);
+            return $this->openAiService->extractPhraseContent($phrase, $content, $language->value);
         } catch (Exception $e) {
             throw new RuntimeException('Error processing connection phrase: ' . $e->getMessage());
         }
@@ -240,7 +241,7 @@ final readonly class CrawlToolkit
 
                 $cleanedContent = new MarkdownCleaner($content)->clean();
 
-                $extractedContent = $this->openRouterService->extractPhraseContent($keyword, $cleanedContent, $language->value);
+                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $cleanedContent, $language->value);
                 if (!empty($extractedContent)) {
                     $result[] = [
                         'url' => $url,
@@ -250,7 +251,7 @@ final readonly class CrawlToolkit
 
             } while (!empty($urls) && count($result) < $maxUrls);
 
-            return $this->openRouterService->analyzeKeyword($keyword, $result, $language->value);
+            return $this->openAiService->analyzeKeyword($keyword, $result, $language->value);
         } catch (Exception $e) {
             throw new RuntimeException('Error during keyword analysis: ' . $e->getMessage());
         }
