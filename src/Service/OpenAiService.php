@@ -76,7 +76,7 @@ class OpenAiService
             $messages,
             'gpt-4o',
             0.7,
-            80000
+            16000
         );
 
         if ($response === null) {
@@ -111,7 +111,7 @@ class OpenAiService
             $messages,
             'gpt-4o',
             0.7,
-            20000
+            16000
         );
 
         if ($response === null) {
