@@ -51,7 +51,7 @@ class OpenAiService
         foreach ($texts as $index => $text) {
             $formattedTexts .= "-----TEXT" . ($index + 1) . "-----\n";
             $formattedTexts .= "URL: " . $text['url'] . "\n";
-            $formattedTexts .= "Content: " . json_encode($text['content']) . "\n";
+            $formattedTexts .= "Content: " . json_encode($text['content'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_IGNORE) . "\n";
 
             if ($this->calcTextTokens($formattedTexts) >= $maxFormattedTextTokens) {
                 break;
