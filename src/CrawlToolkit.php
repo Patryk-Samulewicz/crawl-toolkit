@@ -257,6 +257,24 @@ final readonly class CrawlToolkit
     }
 
     /**
+     * Fetches headers for a given keyword by retrieving top URLs and extracting their headings.
+     *
+     * @param string $keyword
+     * @param int $maxUrls
+     * @param Language $language
+     * @return array[]
+     */
+    public function getHeadersForKeyword(string $keyword, int $maxUrls = 20, Language $language = Language::ENGLISH): array
+    {
+        try {
+            $urls = $this->brightDataService->getTopUrls($keyword, $maxUrls, $language->getCountryCode());
+            return $this->getHeadersFromUrls($urls);
+        } catch (Exception $e) {
+            throw new RuntimeException('Error fetching headers for keyword: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Returns list of available languages
      *
      * @return array<string> List of available languages
