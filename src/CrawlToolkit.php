@@ -193,7 +193,7 @@ final readonly class CrawlToolkit
             try {
                 $content = $this->brightDataService->fetchUrl($url);
                 if (empty($content)) {
-                    throw new RuntimeException('Failed to fetch content for URL: ' . $url);
+                    continue;
                 }
 
                 $cleaner = new HtmlCleaner($content);
