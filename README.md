@@ -56,8 +56,6 @@ $texts = [
 ];
 $analysis = $toolkit->analyzeText('example keyword', $texts, Language::ENGLISH);
 
-// Get available languages
-$availableLanguages = CrawlToolkit::getAvailableLanguages();
 ```
 
 ## Supported Languages

@@ -12,6 +12,10 @@ enum Language: string
     case FRENCH = 'french';
     case SPANISH = 'spanish';
     case ITALIAN = 'italian';
+    case UKRAINIAN = 'ukrainian';
+    case CZECH = 'czech';
+    case PORTUGUESE = 'portuguese';
+
 
     public function getCountryCode(): string
     {
@@ -22,6 +26,9 @@ enum Language: string
             self::FRENCH => 'fr',
             self::SPANISH => 'es',
             self::ITALIAN => 'it',
+            self::UKRAINIAN => 'ua',
+            self::CZECH => 'cz',
+            self::PORTUGUESE => 'pt',
         };
     }
 
@@ -34,6 +41,9 @@ enum Language: string
             'fr' => self::FRENCH,
             'es' => self::SPANISH,
             'it' => self::ITALIAN,
+            'ua' => self::UKRAINIAN,
+            'cz' => self::CZECH,
+            'pt' => self::PORTUGUESE,
             default => null,
         };
     }
