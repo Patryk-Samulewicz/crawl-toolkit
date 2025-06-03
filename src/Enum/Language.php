@@ -15,6 +15,11 @@ enum Language: string
     case UKRAINIAN = 'ukrainian';
     case CZECH = 'czech';
     case PORTUGUESE = 'portuguese';
+    case CROATIAN = 'croatian';
+    case SLOVAK = 'slovak';
+    case DUTCH = 'dutch';
+    case RUSSIAN = 'russian';
+    case HUNGARIAN = 'hungarian';
 
 
     public function getCountryCode(): string
@@ -29,6 +34,11 @@ enum Language: string
             self::UKRAINIAN => 'ua',
             self::CZECH => 'cz',
             self::PORTUGUESE => 'pt',
+            self::CROATIAN => 'hr',
+            self::SLOVAK => 'sk',
+            self::DUTCH => 'nl',
+            self::RUSSIAN => 'ru',
+            self::HUNGARIAN => 'hu',
         };
     }
 
@@ -44,6 +54,11 @@ enum Language: string
             'ua' => self::UKRAINIAN,
             'cz' => self::CZECH,
             'pt' => self::PORTUGUESE,
+            'hr' => self::CROATIAN,
+            'sk' => self::SLOVAK,
+            'nl' => self::DUTCH,
+            'ru' => self::RUSSIAN,
+            'hu' => self::HUNGARIAN,
             default => null,
         };
     }
