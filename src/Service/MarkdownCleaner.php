@@ -37,59 +37,49 @@ readonly class MarkdownCleaner
     {
         $markdown = $this->markdown;
 
-        // Remove images ![alt](url)
+        // Istniejące czyszczenie
         $markdown = preg_replace('/!\[.*?\]\(.*?\)/', '', $markdown);
-
-        // Remove links [text](url)
         $markdown = preg_replace('/\[(.*?)\]\(.*?\)/', '', $markdown);
-
-        // Remove HTML-style image tags
         $markdown = preg_replace('/<img.*?>/', '', $markdown);
-
-        // Remove heading symbols (# and ##)
         $markdown = preg_replace('/^#{1,6}\s+/m', '', $markdown);
-
-        // Remove bold/italic formatting (**, __, *, _)
         $markdown = preg_replace('/(\*\*|__)(.*?)(\*\*|__)/m', '$2', $markdown);
         $markdown = preg_replace('/(\*|_)(.*?)(\*|_)/m', '$2', $markdown);
-
-        // Remove code blocks and inline code
-        $markdown = preg_replace('/```.*?```/s', '', $markdown);
+        $markdown = preg_replace('/``````/s', '', $markdown);
         $markdown = preg_replace('/`(.*?)`/m', '$1', $markdown);
 
-        // Remove backslash escapes
-        $markdown = str_replace('\\', '', $markdown);
+        // Dodatkowe czyszczenie problematycznych znaków
+        $markdown = preg_replace('/[\x00-\x1F\x7F]/', '', $markdown); // Usuń znaki kontrolne
+        $markdown = str_replace('"', "'", $markdown); // Zamień podwójne cudzysłowy na pojedyncze
+        $markdown = str_replace('\\', '\\\\', $markdown); // Escapuj ukośniki
+        $markdown = str_replace('/', '\\/', $markdown); // Escapuj ukośniki w przód
+        $markdown = preg_replace('/\n/', ' ', $markdown); // Zamień nowe linie na spacje
+        $markdown = preg_replace('/\t/', ' ', $markdown); // Zamień tabulacje na spacje
 
-        // Clean up multiple consecutive line breaks
+        // Usuń inne potencjalnie problematyczne znaki markdown
+        $markdown = preg_replace('/[{}[\]|<>]/', '', $markdown);
+
+        // Reszta czyszczenia jak w oryginalnej funkcji
         $markdown = preg_replace('/\n{3,}/', "\n\n", $markdown);
 
         // Trim each line
         $lines = explode("\n", $markdown);
         $lines = array_map('trim', $lines);
-        // Filter lines - each line must have at least 50 characters
         $lines = array_filter($lines, fn($line) => strlen($line) > 50);
-
-        // Remove duplicates
         $lines = array_values(array_unique($lines));
 
-        // if line is less than 300 characters, append next line and remove next line
         $result = [];
         $i = 0;
         while ($i < count($lines)) {
             $line = $lines[$i];
-
-            // Try to merge with next line if current is short
             if (strlen($line) < 500 && isset($lines[$i + 1])) {
                 $line .= ' ' . $lines[$i + 1];
-                $i += 2; // Skip the next line since we merged it
+                $i += 2;
             } else {
                 $i++;
             }
-
             $result[] = $line;
         }
 
-        // Join the cleaned lines back into a single string
         return implode("\n", $result);
     }
 }
