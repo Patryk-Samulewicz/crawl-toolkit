@@ -142,8 +142,19 @@ readonly class BrightDataService
 
             if ($statusCode === 200) {
                 $responseData = json_decode($response, true);
+                $nextPageUrl = $this->getNextPageUrl($responseData);
 
                 if (empty($responseData['organic'])) {
+                    if (empty($nextPageUrl) && !empty($collectedUrls)) {
+                        // If no next page and we have collected any URLs, return them
+                        return array_values(array_unique(array_merge($collectedUrls, $responseData['organic'])));
+                    }
+
+                    if (!empty($nextPageUrl)) {
+                        // If next page URL is available, recursively fetch more URLs
+                        return $this->getTopUrls($keyword, $maxResults, $countryCode, $nextPageUrl, $collectedUrls);
+                    }
+
                     throw new RuntimeException('Unable to get top URLs');
                 }
 
@@ -155,9 +166,6 @@ readonly class BrightDataService
                 }
 
                 $urls = array_values(array_unique($urls));
-
-                // Check if we need more URLs and if there's a next page
-                $nextPageUrl = $this->getNextPageUrl($responseData);
 
                 if (count($urls) < $maxResults && $nextPageUrl !== null) {
                     // Recursively fetch more URLs from the next page
