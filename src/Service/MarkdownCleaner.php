@@ -82,4 +82,36 @@ readonly class MarkdownCleaner
 
         return implode("\n", $result);
     }
+
+    public function extractHeadings(): array
+    {
+        $headings = [];
+        $lines = explode("\n", $this->markdown);
+
+        foreach ($lines as $line) {
+            if (preg_match('/^(#{1,6})\s+(.*)$/', $line, $matches)) {
+                if (empty(trim($matches[2]))) {
+                    continue;
+                }
+
+                $text = self::cleanMarkdown(trim($matches[2]));
+
+                if (empty($text)) {
+                    continue;
+                }
+
+                $headings[] = [
+                    'tag' => 'h' . strlen($matches[1]), // Liczba znaków '#' określa poziom nagłówka
+                    'text' => $text, // Treść nagłówka
+                ];
+            }
+        }
+
+        return $headings;
+    }
+
+    public static function cleanMarkdown(string $markdown): string {
+        $cleaner = new self($markdown);
+        return $cleaner->clean();
+    }
 }

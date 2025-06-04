@@ -49,6 +49,10 @@ class OpenAiService
 
         $formattedTexts = '';
         foreach ($texts as $index => $text) {
+            if (empty($text['content'])) {
+                continue;
+            }
+
             $formattedTexts .= "-----TEXT" . ($index + 1) . "-----\n";
             $formattedTexts .= "URL: " . $text['url'] . "\n";
             $formattedTexts .= "Content: " . json_encode($text['content'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_IGNORE) . "\n";
@@ -74,7 +78,7 @@ class OpenAiService
 
         $response = $this->callOpenAi(
             $messages,
-            'gpt-4o',
+            'gpt-4.1-2025-04-14',
             0.7,
             16000
         );
@@ -109,7 +113,7 @@ class OpenAiService
 
         $response = $this->callOpenAi(
             $messages,
-            'gpt-4o',
+            'gpt-4.1-2025-04-14',
             0.7,
             16000
         );
