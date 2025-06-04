@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CrawlToolkit\Service;
 
+use InvalidArgumentException;
 use Orhanerday\OpenAi\OpenAi;
 use RuntimeException;
 use Throwable;
@@ -21,7 +22,8 @@ class OpenAiService
     private OpenAi $openAi;
     private array $variables;
 
-    public function __construct(string $apiKey) {
+    public function __construct(string $apiKey)
+    {
         $this->openAi = new OpenAi($apiKey);
         $this->variables = [
             'current_date' => date('Y-m-d'),
@@ -71,6 +73,8 @@ class OpenAiService
 - **Web Content Context**:
 ' . $formattedTexts;
 
+        $body = $this->cleanAndPrepareContent($body);
+
         $messages = [
             ["role" => "system", "content" => $this->GET_KEYWORDS_PROMPT],
             ["role" => "user", "content" => $body]
@@ -90,6 +94,18 @@ class OpenAiService
         return $this->responseJson($response);
     }
 
+    private function cleanAndPrepareContent(string $content): string
+    {
+        // Normalizacja kodowania
+        $content = mb_convert_encoding($content, 'UTF-8', 'UTF-8');
+
+        // Usuwanie nieobsługiwanych znaków Unicode
+        $content = preg_replace('/[^\x{0000}-\x{FFFF}]/u', '', $content);
+
+        // Filtracja znaków kontrolnych z zachowaniem tabulatorów i nowych linii
+        return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $content);
+    }
+
     /**
      * Extracts content related to a specific phrase from the given text
      *
@@ -104,7 +120,8 @@ class OpenAiService
         $this->variables['phrase'] = $keyword;
 
         $prompt = $this->replaceVariables($this->EXTRACT_KEYWORD_CONNECTIONS_SYSTEM_PROMPT);
-        $body = "###Text to check \n" . $content . "\n\n";
+        $content = $this->cleanAndPrepareContent($content);
+        $body = "###Text to check \n" . $content . "\n" . '###TEXT END';
 
         $messages = [
             ["role" => "system", "content" => $prompt],
@@ -161,7 +178,7 @@ class OpenAiService
             return 1;
         }
 
-        return (int) ceil($len / 4);
+        return (int)ceil($len / 4);
     }
 
     /**
@@ -174,11 +191,12 @@ class OpenAiService
      * @return string|null Response content or null on error
      */
     public function callOpenAi(
-        array   $messages,
-        string  $model = 'gpt-4',
-        float   $temperature = 0.7,
-        int     $maxTokens = 10000
-    ): ?string {
+        array  $messages,
+        string $model = 'gpt-4',
+        float  $temperature = 0.7,
+        int    $maxTokens = 10000
+    ): ?string
+    {
         try {
             $payload = [
                 'model' => $model,

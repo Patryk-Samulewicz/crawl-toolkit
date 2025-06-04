@@ -268,6 +268,9 @@ final readonly class CrawlToolkit
      */
     public function makeKeywordAnalysisAndHeaders(string $keyword, int $maxUrls = 20, Language $language = Language::ENGLISH): array
     {
+        $keyword = trim($keyword);
+        $keyword = str_replace(["\r", "\n", "\t"], ' ', $keyword);
+
         try {
             $result = [];
 
