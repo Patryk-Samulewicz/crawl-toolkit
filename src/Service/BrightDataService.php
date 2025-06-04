@@ -147,7 +147,7 @@ readonly class BrightDataService
                 if (empty($responseData['organic'])) {
                     if (empty($nextPageUrl) && !empty($collectedUrls)) {
                         // If no next page and we have collected any URLs, return them
-                        return array_values(array_unique(array_merge($collectedUrls, $responseData['organic'])));
+                        return array_slice($collectedUrls, 0, $maxResults);
                     }
 
                     if (!empty($nextPageUrl)) {
