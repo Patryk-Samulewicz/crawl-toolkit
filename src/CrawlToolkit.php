@@ -282,7 +282,12 @@ final readonly class CrawlToolkit
                     break; // No more URLs to process
                 }
 
-                $content = $this->brightDataService->fetchUrl($url, 'markdown');
+                try {
+                    $content = $this->brightDataService->fetchUrl($url, 'markdown');
+                } catch (Exception) {
+                    $content = null;
+                }
+
                 if (empty($content)) {
                     continue;
                 }
