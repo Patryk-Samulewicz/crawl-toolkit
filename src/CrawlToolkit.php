@@ -270,6 +270,7 @@ final readonly class CrawlToolkit
     {
         $keyword = trim($keyword);
         $keyword = str_replace(["\r", "\n", "\t"], ' ', $keyword);
+        $keyword = mb_convert_encoding($keyword, 'UTF-8', 'auto');
 
         try {
             $result = [];
@@ -284,6 +285,9 @@ final readonly class CrawlToolkit
 
                 try {
                     $content = $this->brightDataService->fetchUrl($url, 'markdown');
+                    if ($content !== null) {
+                        $content = mb_convert_encoding($content, 'UTF-8', 'auto');
+                    }
                 } catch (Exception) {
                     $content = null;
                 }
