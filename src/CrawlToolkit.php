@@ -410,7 +410,7 @@ final readonly class CrawlToolkit
      * @return array Analysis results containing insights about the keyword
      * @throws RuntimeException When an error occurs during analysis
      */
-    public function makeKeywordFromContents(string $keyword, array $contents, Language $language = Language::ENGLISH): array
+    public function makeKeywordsFromContents(string $keyword, array $contents, Language $language = Language::ENGLISH): array
     {
         if (empty($contents)) {
             throw new RuntimeException('Contents array cannot be empty');
