@@ -2,14 +2,15 @@
 
 namespace CrawlToolkit;
 
-use CrawlToolkit\Service\HtmlCleaner;
+use CrawlToolkit\Enum\FetchType;
+use CrawlToolkit\Enum\Language;
+use CrawlToolkit\Service\BrightDataService;
+use CrawlToolkit\Service\ContentCleaner\ContentCleanerFactory;
+use CrawlToolkit\Service\ContentCleaner\HtmlCleaner;
+use CrawlToolkit\Service\ContentCleaner\MarkdownCleaner;
 use CrawlToolkit\Service\OpenAiService;
 use Exception;
-use CrawlToolkit\Service\BrightDataService;
-use CrawlToolkit\Service\OpenRouterService;
 use RuntimeException;
-use CrawlToolkit\Service\MarkdownCleaner;
-use CrawlToolkit\Enum\Language;
 
 /**
  * Main class for the CrawlToolkit package that provides functionality for web crawling,
@@ -40,6 +41,11 @@ final readonly class CrawlToolkit
         private string $brightDataCrawlZone,
         private string $openAiKey
     ) {
+        if (empty($brightDataSerpKey) || empty($brightDataSerpZone) ||
+            empty($brightDataCrawlKey) || empty($brightDataCrawlZone) || empty($openAiKey)) {
+            throw new RuntimeException('All API keys and zones must be provided.');
+        }
+
         $this->brightDataService = new BrightDataService(
             $this->brightDataSerpKey,
             $this->brightDataSerpZone,
@@ -126,33 +132,36 @@ final readonly class CrawlToolkit
      * @return array<array{url: string, content: string|null}> Array of URLs and their cleaned content
      * @throws RuntimeException When an error occurs during fetching or cleaning
      */
-    public function fetchAndCleanUrls(array $urls): array
+    public function fetchAndCleanUrls(array $urls, FetchType $fetchType = FetchType::Html): array
     {
         if (empty($urls)) {
             throw new RuntimeException('URLs array cannot be empty');
         }
 
         $result = [];
-
         foreach ($urls as $url) {
             try {
-                $content = $this->brightDataService->fetchUrl($url);
+                $content = $this->brightDataService->fetchUrl($url, $fetchType);
 
-                if ($content !== null) {
-                    $cleanedContent = $this->cleanHtml($content);
-                    $result[] = [
-                        'url' => $url,
-                        'content' => $cleanedContent
-                    ];
-                } else {
-                    $result[] = [
-                        'url' => $url,
-                        'content' => null
-                    ];
+                if (empty($content)) {
+                    throw new RuntimeException('Error while fetching URL: ' . $url);
                 }
-            } catch (Exception $e) {
-                throw new RuntimeException('Error while fetching or cleaning URL ' . $url . ': ' . $e->getMessage());
+            } catch (Exception) {
+                $result[] = [
+                    'url' => $url,
+                    'content' => null
+                ];
+
+                continue;
             }
+
+            $cleanerFactory = new ContentCleanerFactory();
+            $cleaner = $cleanerFactory->create($fetchType, $content);
+
+            $result[] = [
+                'url' => $url,
+                'content' => $cleaner->clean()
+            ];
         }
 
         return $result;
@@ -169,6 +178,10 @@ final readonly class CrawlToolkit
      */
     public function processConnectionPhraseToContent(string $phrase, string $content, Language $language = Language::ENGLISH): array
     {
+        $phrase = trim($phrase);
+        $phrase = str_replace(["\r", "\n", "\t"], ' ', $phrase);
+        $phrase = mb_convert_encoding($phrase, 'UTF-8', 'auto');
+
         try {
             return $this->openAiService->extractPhraseContent($phrase, $content, $language->value);
         } catch (Exception $e) {
@@ -183,30 +196,33 @@ final readonly class CrawlToolkit
      * @return array<array{url: string, headings: array}> Array containing URLs and their extracted headings
      * @throws RuntimeException When an error occurs during fetching or processing
      */
-    public function getHeadersFromUrls(array $urls): array
+    public function getHeadersFromUrls(array $urls, FetchType $fetchType = FetchType::Html): array
     {
         if (empty($urls)) {
             throw new RuntimeException('URLs array cannot be empty');
         }
 
+        $contents = $this->fetchAndCleanUrls($urls, $fetchType);
+
+        if (empty($contents)) {
+            throw new RuntimeException('No content fetched from provided URLs');
+        }
+
+        // Extract headings from the cleaned content
         $result = [];
-        foreach ($urls as $url) {
-            try {
-                $content = $this->brightDataService->fetchUrl($url);
-                if (empty($content)) {
-                    continue;
-                }
-
-                $cleaner = new HtmlCleaner($content);
-                $headings = $cleaner->extractHeadings();
-
-                $result[] = [
-                    'url' => $url,
-                    'headings' => $headings
-                ];
-            } catch (Exception $e) {
-                throw new RuntimeException('Error fetching headers for URL ' . $url . ': ' . $e->getMessage());
+        $cleanerFactory = new ContentCleanerFactory();
+        foreach ($contents as $content) {
+            if (empty($content['content'])) {
+                continue; // Skip if content is empty
             }
+
+            $cleaner = $cleanerFactory->create($fetchType, $content['content']);
+            $headings = $cleaner->extractHeadings();
+
+            $result[] = [
+                'url' => $content['url'],
+                'headings' => $headings
+            ];
         }
 
         return $result;
@@ -223,6 +239,10 @@ final readonly class CrawlToolkit
      */
     public function makeKeywordAnalysis(string $keyword, int $maxUrls = 20, Language $language = Language::ENGLISH): array
     {
+        $keyword = trim($keyword);
+        $keyword = str_replace(["\r", "\n", "\t"], ' ', $keyword);
+        $keyword = mb_convert_encoding($keyword, 'UTF-8', 'auto');
+
         try {
             $result = [];
 
@@ -234,7 +254,7 @@ final readonly class CrawlToolkit
                     break; // No more URLs to process
                 }
 
-                $content = $this->brightDataService->fetchUrl($url, 'markdown');
+                $content = $this->brightDataService->fetchUrl($url, FetchType::Markdown);
                 if (empty($content)) {
                     continue;
                 }
@@ -284,17 +304,15 @@ final readonly class CrawlToolkit
                 }
 
                 try {
-                    $content = $this->brightDataService->fetchUrl($url, 'markdown');
-                    if ($content !== null) {
-                        $content = mb_convert_encoding($content, 'UTF-8', 'auto');
+                    $content = $this->brightDataService->fetchUrl($url, FetchType::Markdown);
+                    if (empty($content)) {
+                        continue;
                     }
                 } catch (Exception) {
-                    $content = null;
-                }
-
-                if (empty($content)) {
                     continue;
                 }
+
+                $content = mb_convert_encoding($content, 'UTF-8', 'auto');
 
                 $cleaner = new MarkdownCleaner($content);
                 $headings = $cleaner->extractHeadings();
@@ -335,6 +353,23 @@ final readonly class CrawlToolkit
             return $this->getHeadersFromUrls($urls);
         } catch (Exception $e) {
             throw new RuntimeException('Error fetching headers for keyword: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Fetches content from a specified URL using BrightData's crawler service.
+     *
+     * @param string $url The URL to fetch content from
+     * @param FetchType $fetchType The desired output format ('markdown' or 'html')
+     * @return string|null The fetched content or null if the request fails
+     * @throws RuntimeException When an error occurs during the request
+     */
+    public function fetchUrlContent(string $url, FetchType $fetchType = FetchType::Html): ?string
+    {
+        try {
+            return $this->brightDataService->fetchUrl($url, $fetchType);
+        } catch (Exception $e) {
+            throw new RuntimeException('Error fetching URL content: ' . $e->getMessage());
         }
     }
 

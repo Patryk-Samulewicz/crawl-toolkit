@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace CrawlToolkit\Service;
 
+use CrawlToolkit\Enum\FetchType;
 use Exception;
 use RuntimeException;
 
@@ -37,11 +38,11 @@ readonly class BrightDataService
      * Fetches content from a specified URL using BrightData's crawler service.
      *
      * @param string $url The URL to fetch content from
-     * @param string $dataFormat The desired output format ('markdown' or 'html')
+     * @param FetchType $fetchType The desired output format ('markdown' or 'html')
      * @return string|null The fetched content or null if the request fails
      * @throws RuntimeException When an error occurs during the request
      */
-    public function fetchUrl(string $url, string $dataFormat = 'html'): ?string
+    public function fetchUrl(string $url, FetchType $fetchType = FetchType::Html): ?string
     {
         $headers = [
             'Authorization: Bearer ' . $this->brightDataCrawlKey,
@@ -54,7 +55,7 @@ readonly class BrightDataService
             'format' => 'raw'
         ];
 
-        if ($dataFormat === 'markdown') {
+        if ($fetchType === FetchType::Markdown) {
             $payload['data_format'] = 'markdown';
         }
 

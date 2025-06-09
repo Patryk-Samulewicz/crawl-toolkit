@@ -1,6 +1,6 @@
 <?php
 
-namespace CrawlToolkit\Service;
+namespace CrawlToolkit\Service\ContentCleaner;
 
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -10,7 +10,7 @@ use Symfony\Component\DomCrawler\Crawler;
  * This class provides functionality to clean HTML content by removing unnecessary elements,
  * attributes, and empty tags, as well as extracting headings from the content.
  */
-class HtmlCleaner
+class HtmlCleaner extends AbstractContentCleaner
 {
     private Crawler $crawler;
 
@@ -21,12 +21,19 @@ class HtmlCleaner
      */
     public function __construct(string $html)
     {
-        if (empty($html)) {
-            throw new \InvalidArgumentException('HTML content cannot be empty.');
-        }
-
+        parent::__construct($html);
         $this->crawler = new Crawler();
-        $this->crawler->addHtmlContent($html);
+    }
+
+    protected function validateContent(): bool
+    {
+        return !empty($this->content);
+    }
+
+    private function refreshCrawler(): void
+    {
+        $this->crawler = new Crawler();
+        $this->crawler->addHtmlContent($this->content);
     }
 
     /**
@@ -36,6 +43,8 @@ class HtmlCleaner
      */
     public function clean(): string
     {
+        $this->refreshCrawler();
+
         $this->removeElements('img');
         $this->removeElements('a');
         $this->removeElements('script');
@@ -61,6 +70,8 @@ class HtmlCleaner
      */
     public function extractHeadings(): array
     {
+        $this->refreshCrawler();
+
         $headings = [];
         $nodes = $this->crawler->filter('h1, h2, h3, h4, h5, h6');
         if ($nodes->count() > 0) {
@@ -84,8 +95,24 @@ class HtmlCleaner
         $nodes = $this->crawler->filter($selector);
         if ($nodes->count() > 0) {
             $nodes->each(function (Crawler $node) {
-                if ($node->getNode(0) && $node->getNode(0)->parentNode) {
-                    $node->getNode(0)->parentNode->removeChild($node->getNode(0));
+                $node->getNode(0)->parentNode->removeChild($node->getNode(0));
+            });
+        }
+    }
+
+    /**
+     * Removes all attributes from all elements in the HTML content.
+     */
+    private function removeAttributes(): void
+    {
+        $nodes = $this->crawler->filter('*');
+        if ($nodes->count() > 0) {
+            $nodes->each(function (Crawler $node) {
+                $element = $node->getNode(0);
+                if ($element && $element->hasAttributes()) {
+                    while ($element->attributes->length) {
+                        $element->removeAttribute($element->attributes->item(0)->name);
+                    }
                 }
             });
         }
@@ -101,25 +128,6 @@ class HtmlCleaner
             $nodes->each(function (Crawler $node) {
                 if (trim($node->text()) === '' && $node->getNode(0) && $node->getNode(0)->parentNode) {
                     $node->getNode(0)->parentNode->removeChild($node->getNode(0));
-                }
-            });
-        }
-    }
-
-    /**
-     * Removes all attributes from all elements in the HTML content.
-     */
-    private function removeAttributes(): void
-    {
-        $nodes = $this->crawler->filter('*');
-        if ($nodes->count() > 0) {
-            $nodes->each(function (Crawler $node) {
-                foreach ($node as $domElement) {
-                    if ($domElement && $domElement->attributes) {
-                        while ($domElement->attributes->length) {
-                            $domElement->removeAttribute($domElement->attributes->item(0)->name);
-                        }
-                    }
                 }
             });
         }
