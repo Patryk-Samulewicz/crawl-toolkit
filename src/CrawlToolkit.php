@@ -40,7 +40,8 @@ final readonly class CrawlToolkit
         private string $brightDataSerpZone,
         private string $brightDataCrawlKey,
         private string $brightDataCrawlZone,
-        private string $openAiKey
+        private string $openAiKey,
+        private string $helpfulAiInstructions = ''
     ) {
         if (empty($brightDataSerpKey) || empty($brightDataSerpZone) ||
             empty($brightDataCrawlKey) || empty($brightDataCrawlZone) || empty($openAiKey)) {
@@ -87,7 +88,7 @@ final readonly class CrawlToolkit
     public function analyzeText(string $keyword, array $texts, Language $language = Language::ENGLISH): array
     {
         try {
-            return $this->openAiService->analyzeKeyword($keyword, $texts, $language->value);
+            return $this->openAiService->analyzeKeyword($keyword, $texts, $language->value, $this->helpfulAiInstructions);
         } catch (Exception $e) {
             throw new RuntimeException('Error during text analysis: ' . $e->getMessage());
         }
@@ -184,7 +185,7 @@ final readonly class CrawlToolkit
         $phrase = mb_convert_encoding($phrase, 'UTF-8', 'auto');
 
         try {
-            return $this->openAiService->extractPhraseContent($phrase, $content, $language->value);
+            return $this->openAiService->extractPhraseContent($phrase, $content, $language->value, $this->helpfulAiInstructions);
         } catch (Exception $e) {
             throw new RuntimeException('Error processing connection phrase: ' . $e->getMessage());
         }
@@ -262,7 +263,7 @@ final readonly class CrawlToolkit
 
                 $cleanedContent = new MarkdownCleaner($content)->clean();
 
-                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $cleanedContent, $language->value);
+                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $cleanedContent, $language->value, $this->helpfulAiInstructions);
                 if (!empty($extractedContent)) {
                     $result[] = [
                         'url' => $url,
@@ -272,7 +273,7 @@ final readonly class CrawlToolkit
 
             } while (!empty($urls) && count($result) < $maxUrls);
 
-            return $this->openAiService->analyzeKeyword($keyword, $result, $language->value);
+            return $this->openAiService->analyzeKeyword($keyword, $result, $language->value, $this->helpfulAiInstructions);
         } catch (Exception $e) {
             throw new RuntimeException('Error during keyword analysis: ' . $e->getMessage());
         }
@@ -319,7 +320,7 @@ final readonly class CrawlToolkit
                 $headings = $cleaner->extractHeadings();
                 $cleanedContent = $cleaner->clean();
 
-                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $cleanedContent, $language->value);
+                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $cleanedContent, $language->value, $this->helpfulAiInstructions);
 
                 $result[] = [
                     'url' => $url,
@@ -330,7 +331,7 @@ final readonly class CrawlToolkit
             } while (!empty($urls) && count($result) < $maxUrls);
 
             return [
-                'analysis' => $this->openAiService->analyzeKeyword($keyword, $result, $language->value),
+                'analysis' => $this->openAiService->analyzeKeyword($keyword, $result, $language->value, $this->helpfulAiInstructions),
                 'results' => $result
             ];
 
@@ -387,14 +388,14 @@ final readonly class CrawlToolkit
     public function makeKeywordsFromContent(string $keyword, string $url, string $content, Language $language = Language::ENGLISH): array
     {
         try {
-            $extractedContent = $this->openAiService->extractPhraseContent($keyword, $content);
+            $extractedContent = $this->openAiService->extractPhraseContent($keyword, $content, $language->value, $this->helpfulAiInstructions);
 
             if (empty($extractedContent)) {
                 throw new RuntimeException('No content extracted for keyword: ' . $keyword);
             }
 
 
-            return $this->openAiService->analyzeKeyword($keyword, [['url' => $url, 'content' => $extractedContent]], $language->value);
+            return $this->openAiService->analyzeKeyword($keyword, [['url' => $url, 'content' => $extractedContent]], $language->value, $this->helpfulAiInstructions);
 
         } catch (Exception $e) {
             throw new RuntimeException('Error making keywords from content: ' . $e->getMessage());
@@ -423,7 +424,7 @@ final readonly class CrawlToolkit
                     continue; // Skip empty content
                 }
 
-                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $content['content'], $language->value);
+                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $content['content'], $language->value, $this->helpfulAiInstructions);
                 if (!empty($extractedContent)) {
                     $extractedContents[] = [
                         'url' => $content['url'],
@@ -436,7 +437,7 @@ final readonly class CrawlToolkit
                 throw new RuntimeException('No valid contents extracted for keyword: ' . $keyword);
             }
 
-            return $this->openAiService->analyzeKeyword($keyword, $extractedContents, $language->value);
+            return $this->openAiService->analyzeKeyword($keyword, $extractedContents, $language->value, $this->helpfulAiInstructions);
         } catch (Exception $e) {
             throw new RuntimeException('Error making keyword from contents: ' . $e->getMessage());
         }

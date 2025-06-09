@@ -39,13 +39,18 @@ class OpenAiService
      * @param string $keyword The keyword to analyze
      * @param array $texts Array of texts in format [['url' => string, 'content' => string]]
      * @param string $language Language for analysis (default: 'english')
+     * @param string $helpfulInstructions Additional instructions for the AI model
      * @return array Analysis results from the AI model
      * @throws RuntimeException When the analysis fails
      */
-    public function analyzeKeyword(string $keyword, array $texts, string $language = 'english'): array
+    public function analyzeKeyword(string $keyword, array $texts, string $language = 'english', string $helpfulInstructions = ''): array
     {
         $this->variables['keyword'] = $keyword;
         $this->variables['language'] = $language;
+
+        if (!empty($helpfulInstructions)) {
+            $this->variables['helpful_instructions'] = '### Helpful Instructions' . "\n" . $helpfulInstructions . "\n";
+        }
 
         $maxFormattedTextTokens = 50000;
 
@@ -112,12 +117,17 @@ class OpenAiService
      * @param string $keyword The phrase to search for
      * @param string $content The text content to analyze
      * @param string $lang Language of the content (default: 'english')
+     * @param string $helpfulInstructions Additional instructions for the AI model
      * @return array Extracted content and analysis results
      */
-    public function extractPhraseContent(string $keyword, string $content, string $lang = 'english'): array
+    public function extractPhraseContent(string $keyword, string $content, string $lang = 'english', string $helpfulInstructions = ''): array
     {
         $this->variables['lang'] = $lang;
         $this->variables['phrase'] = $keyword;
+
+        if (!empty($helpfulInstructions)) {
+            $this->variables['helpful_instructions'] = '### Helpful Instructions' . "\n" . $helpfulInstructions . "\n";
+        }
 
         $prompt = $this->replaceVariables($this->EXTRACT_KEYWORD_CONNECTIONS_SYSTEM_PROMPT);
         $content = $this->cleanAndPrepareContent($content);
