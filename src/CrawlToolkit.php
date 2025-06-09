@@ -10,6 +10,7 @@ use CrawlToolkit\Service\ContentCleaner\HtmlCleaner;
 use CrawlToolkit\Service\ContentCleaner\MarkdownCleaner;
 use CrawlToolkit\Service\OpenAiService;
 use Exception;
+use JetBrains\PhpStorm\ArrayShape;
 use RuntimeException;
 
 /**
@@ -372,6 +373,75 @@ final readonly class CrawlToolkit
             throw new RuntimeException('Error fetching URL content: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Makes keywords from content by extracting relevant phrases and analyzing them.
+     *
+     * @param string $keyword The keyword to analyze
+     * @param string $url The URL associated with the content
+     * @param string $content The content to analyze
+     * @param Language $language Language for analysis (default: Language::ENGLISH)
+     * @return array Analysis results containing insights about the keyword
+     * @throws RuntimeException When an error occurs during analysis
+     */
+    public function makeKeywordsFromContent(string $keyword, string $url, string $content, Language $language = Language::ENGLISH): array
+    {
+        try {
+            $extractedContent = $this->openAiService->extractPhraseContent($keyword, $content);
+
+            if (empty($extractedContent)) {
+                throw new RuntimeException('No content extracted for keyword: ' . $keyword);
+            }
+
+
+            return $this->openAiService->analyzeKeyword($keyword, [['url' => $url, 'content' => $extractedContent]], $language->value);
+
+        } catch (Exception $e) {
+            throw new RuntimeException('Error making keywords from content: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Makes keywords from multiple contents by extracting relevant phrases and analyzing them.
+     *
+     * @param string $keyword The keyword to analyze
+     * @param array $contents Array of contents in format [['url' => string, 'content' => string]]
+     * @param Language $language Language for analysis (default: Language::ENGLISH)
+     * @return array Analysis results containing insights about the keyword
+     * @throws RuntimeException When an error occurs during analysis
+     */
+    public function makeKeywordFromContents(string $keyword, array $contents, Language $language = Language::ENGLISH): array
+    {
+        if (empty($contents)) {
+            throw new RuntimeException('Contents array cannot be empty');
+        }
+
+        try {
+            $extractedContents = [];
+            foreach ($contents as $content) {
+                if (empty($content['content'])) {
+                    continue; // Skip empty content
+                }
+
+                $extractedContent = $this->openAiService->extractPhraseContent($keyword, $content['content'], $language->value);
+                if (!empty($extractedContent)) {
+                    $extractedContents[] = [
+                        'url' => $content['url'],
+                        'content' => $extractedContent
+                    ];
+                }
+            }
+
+            if (empty($extractedContents)) {
+                throw new RuntimeException('No valid contents extracted for keyword: ' . $keyword);
+            }
+
+            return $this->openAiService->analyzeKeyword($keyword, $extractedContents, $language->value);
+        } catch (Exception $e) {
+            throw new RuntimeException('Error making keyword from contents: ' . $e->getMessage());
+        }
+    }
+
 
     /**
      * Returns list of available languages
