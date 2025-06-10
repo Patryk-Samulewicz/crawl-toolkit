@@ -10,7 +10,6 @@ use CrawlToolkit\Service\ContentCleaner\HtmlCleaner;
 use CrawlToolkit\Service\ContentCleaner\MarkdownCleaner;
 use CrawlToolkit\Service\OpenAiService;
 use Exception;
-use JetBrains\PhpStorm\ArrayShape;
 use RuntimeException;
 
 /**

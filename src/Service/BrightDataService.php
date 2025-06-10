@@ -77,13 +77,13 @@ readonly class BrightDataService
                 throw new RuntimeException('cURL Error: ' . curl_error($ch));
             }
 
-            curl_close($ch);
-
             if ($statusCode === 200) {
                 return $response;
             }
         } catch (Exception $e) {
             throw new RuntimeException('Error fetching Brightdata: ' . $e->getMessage());
+        } finally {
+            curl_close($ch);
         }
 
         return null;
@@ -179,6 +179,8 @@ readonly class BrightDataService
             }
         } catch (Exception $e) {
             throw new RuntimeException('Error during get top URLs: ' . $e->getMessage());
+        } finally {
+            curl_close($ch);
         }
     }
 
