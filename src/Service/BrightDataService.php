@@ -19,6 +19,10 @@ class BrightDataService
     private const float REQUEST_DELAY = 2.0;
     private float $lastRequestTime = 0;
     private const string API_URL = 'https://api.brightdata.com/request';
+    private const array SKIP_WEBSITES = [
+        '.ru',
+        '.by',
+    ];
 
     /**
      * Initializes the BrightDataService with required API keys and zones.
@@ -187,6 +191,16 @@ class BrightDataService
                     // Recursively fetch more URLs from the next page
                     return $this->getTopUrls($keyword, $maxResults, $countryCode, $nextPageUrl, $urls);
                 }
+
+                // Filter out URLs that match any of the skip patterns
+                $urls = array_filter($urls, function ($url) {
+                    foreach (self::SKIP_WEBSITES as $skip) {
+                        if (str_contains($url, $skip)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
 
                 return array_slice($urls, 0, $maxResults);
             } else {
