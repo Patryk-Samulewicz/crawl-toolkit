@@ -5,7 +5,7 @@ namespace CrawlToolkit\Service\ContentCleaner;
 abstract class AbstractContentCleaner implements ContentCleanerInterface
 {
     protected string $content;
-    private const int MAX_CONTENT_LENGTH = 1000000; // 1MB limit
+    private const int MAX_CONTENT_LENGTH = 20000000; // 20MB limit
 
     /**
      * @throws \InvalidArgumentException

@@ -150,6 +150,14 @@ final readonly class CrawlToolkit
                 if (empty($content)) {
                     throw new RuntimeException('Error while fetching URL: ' . $url);
                 }
+
+                $cleanerFactory = new ContentCleanerFactory();
+                $cleaner = $cleanerFactory->create($fetchType, $content);
+
+                $result[] = [
+                    'url' => $url,
+                    'content' => $cleaner->clean()
+                ];
             } catch (Exception) {
                 $result[] = [
                     'url' => $url,
@@ -158,14 +166,6 @@ final readonly class CrawlToolkit
 
                 continue;
             }
-
-            $cleanerFactory = new ContentCleanerFactory();
-            $cleaner = $cleanerFactory->create($fetchType, $content);
-
-            $result[] = [
-                'url' => $url,
-                'content' => $cleaner->clean()
-            ];
         }
 
         return $result;
@@ -207,7 +207,6 @@ final readonly class CrawlToolkit
         }
 
         $contents = $this->fetchAndCleanUrls($urls, $fetchType);
-
         if (empty($contents)) {
             throw new RuntimeException('No content fetched from provided URLs');
         }
@@ -220,8 +219,12 @@ final readonly class CrawlToolkit
                 continue; // Skip if content is empty
             }
 
-            $cleaner = $cleanerFactory->create($fetchType, $content['content']);
-            $headings = $cleaner->extractHeadings();
+            try {
+                $cleaner = $cleanerFactory->create($fetchType, $content['content']);
+                $headings = $cleaner->extractHeadings();
+            } catch (Exception) {
+                $headings = [];
+            }
 
             $result[] = [
                 'url' => $content['url'],

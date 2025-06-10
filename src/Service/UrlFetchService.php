@@ -18,7 +18,7 @@ class UrlFetchService
 {
     private const float REQUEST_DELAY = 1.0;
     private float $lastRequestTime = 0;
-    private const int MAX_RETRIES = 3;
+    private const int MAX_RETRIES = 2;
     private const int CURL_TIMEOUT = 30;
     private const array RETRY_STATUS_CODES = [408, 429, 500, 502, 503, 504];
 
