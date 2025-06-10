@@ -9,6 +9,7 @@ use CrawlToolkit\Service\ContentCleaner\ContentCleanerFactory;
 use CrawlToolkit\Service\ContentCleaner\HtmlCleaner;
 use CrawlToolkit\Service\ContentCleaner\MarkdownCleaner;
 use CrawlToolkit\Service\OpenAiService;
+use CrawlToolkit\Service\UrlFetchService;
 use Exception;
 use RuntimeException;
 
@@ -24,6 +25,7 @@ final readonly class CrawlToolkit
 {
     private BrightDataService $brightDataService;
     private OpenAiService $openAiService;
+    private UrlFetchService $urlFetchService;
 
     /**
      * Initializes the CrawlToolkit with required API keys and zones.
@@ -55,6 +57,7 @@ final readonly class CrawlToolkit
         );
 
         $this->openAiService = new OpenAiService($this->openAiKey);
+        $this->urlFetchService = new UrlFetchService();
     }
 
     /**
@@ -142,7 +145,7 @@ final readonly class CrawlToolkit
         $result = [];
         foreach ($urls as $url) {
             try {
-                $content = $this->brightDataService->fetchUrl($url, $fetchType);
+                $content = $this->fetchUrlContent($url, $fetchType);
 
                 if (empty($content)) {
                     throw new RuntimeException('Error while fetching URL: ' . $url);
@@ -255,7 +258,7 @@ final readonly class CrawlToolkit
                     break; // No more URLs to process
                 }
 
-                $content = $this->brightDataService->fetchUrl($url, FetchType::Markdown);
+                $content = $this->fetchUrlContent($url, FetchType::Markdown);
                 if (empty($content)) {
                     continue;
                 }
@@ -305,7 +308,7 @@ final readonly class CrawlToolkit
                 }
 
                 try {
-                    $content = $this->brightDataService->fetchUrl($url, FetchType::Markdown);
+                    $content = $this->fetchUrlContent($url, FetchType::Markdown);
                     if (empty($content)) {
                         continue;
                     }
@@ -358,7 +361,7 @@ final readonly class CrawlToolkit
     }
 
     /**
-     * Fetches content from a specified URL using BrightData's crawler service.
+     * Fetches content from a specified URL using UrlFetchService first, falling back to BrightData if needed.
      *
      * @param string $url The URL to fetch content from
      * @param FetchType $fetchType The desired output format ('markdown' or 'html')
@@ -368,9 +371,22 @@ final readonly class CrawlToolkit
     public function fetchUrlContent(string $url, FetchType $fetchType = FetchType::Html): ?string
     {
         try {
+            // Najpierw próbujemy pobrać przez UrlFetchService
+            $result = $this->urlFetchService->fetchUrl($url, $fetchType);
+            
+            if ($result !== null && !empty($result['content'])) {
+                return $result['content'];
+            }
+            
+            // Jeśli się nie udało, próbujemy przez BrightData
             return $this->brightDataService->fetchUrl($url, $fetchType);
         } catch (Exception $e) {
-            throw new RuntimeException('Error fetching URL content: ' . $e->getMessage());
+            // Jeśli wystąpił błąd w UrlFetchService, próbujemy przez BrightData
+            try {
+                return $this->brightDataService->fetchUrl($url, $fetchType);
+            } catch (Exception $brightDataError) {
+                throw new RuntimeException('Error fetching URL content: ' . $e->getMessage() . ' | BrightData error: ' . $brightDataError->getMessage());
+            }
         }
     }
 

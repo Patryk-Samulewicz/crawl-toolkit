@@ -5,6 +5,7 @@ namespace CrawlToolkit\Service\ContentCleaner;
 abstract class AbstractContentCleaner implements ContentCleanerInterface
 {
     protected string $content;
+    private const int MAX_CONTENT_LENGTH = 1000000; // 1MB limit
 
     /**
      * @throws \InvalidArgumentException
@@ -13,6 +14,9 @@ abstract class AbstractContentCleaner implements ContentCleanerInterface
     {
         if (empty($content)) {
             throw new \InvalidArgumentException('Content cannot be empty.');
+        }
+        if (strlen($content) > self::MAX_CONTENT_LENGTH) {
+            throw new \InvalidArgumentException('Content exceeds maximum allowed length of ' . self::MAX_CONTENT_LENGTH . ' bytes.');
         }
         $this->content = $content;
     }

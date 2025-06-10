@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace CrawlToolkit\Service;
 
 use CrawlToolkit\Enum\FetchType;
+use CrawlToolkit\Enum\Language;
 use Exception;
 use RuntimeException;
 
@@ -13,8 +14,10 @@ use RuntimeException;
  * This service provides functionality to fetch web content and search results using
  * BrightData's API, supporting both HTML and Markdown formats.
  */
-readonly class BrightDataService
+class BrightDataService
 {
+    private const float REQUEST_DELAY = 2.0;
+    private float $lastRequestTime = 0;
     private const string API_URL = 'https://api.brightdata.com/request';
 
     /**
@@ -44,6 +47,8 @@ readonly class BrightDataService
      */
     public function fetchUrl(string $url, FetchType $fetchType = FetchType::Html): ?string
     {
+        $this->respectRateLimit();
+
         $headers = [
             'Authorization: Bearer ' . $this->brightDataCrawlKey,
             'Content-Type: application/json',
@@ -107,6 +112,8 @@ readonly class BrightDataService
         ?string $url = null, 
         array $collectedUrls = []
     ): array {
+        $countryCode = Language::fromCountryCode($countryCode)->mapForbiddenLangToDefault()->getCountryCode();
+
         $headers = [
             'Authorization: Bearer ' . $this->brightDataSerpKey,
             'Content-Type: application/json',
@@ -143,8 +150,16 @@ readonly class BrightDataService
 
             if ($statusCode === 200) {
                 $responseData = json_decode($response, true);
-                $nextPageUrl = $this->getNextPageUrl($responseData);
 
+                if (empty($responseData)) {
+                    if (!empty($collectedUrls)) {
+                        return array_slice($collectedUrls, 0, $maxResults);
+                    }
+
+                    throw new RuntimeException('Empty response from BrightData');
+                }
+
+                $nextPageUrl = $this->getNextPageUrl($responseData);
                 if (empty($responseData['organic'])) {
                     if (empty($nextPageUrl) && !empty($collectedUrls)) {
                         // If no next page and we have collected any URLs, return them
@@ -197,5 +212,16 @@ readonly class BrightDataService
         }
 
         return null;
+    }
+
+    private function respectRateLimit(): void
+    {
+        $currentTime = microtime(true);
+        $timeSinceLastRequest = $currentTime - $this->lastRequestTime;
+
+        if ($timeSinceLastRequest < self::REQUEST_DELAY && $this->lastRequestTime > 0) {
+            $sleepTime = (self::REQUEST_DELAY - $timeSinceLastRequest) * 1000000;
+            usleep((int)$sleepTime);
+        }
     }
 }

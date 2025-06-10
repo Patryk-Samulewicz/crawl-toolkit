@@ -70,7 +70,10 @@ class MarkdownCleaner extends AbstractContentCleaner
         // Łączenie krótkich linii
         $result = [];
         $i = 0;
-        while ($i < count($lines)) {
+        $maxIterations = count($lines);
+        $iterations = 0;
+        
+        while ($i < count($lines) && $iterations < $maxIterations) {
             $line = $lines[$i];
             if (strlen($line) < 500 && isset($lines[$i + 1])) {
                 // Dodajemy spację między liniami
@@ -80,6 +83,7 @@ class MarkdownCleaner extends AbstractContentCleaner
                 $i++;
             }
             $result[] = $line;
+            $iterations++;
         }
 
         return implode("\n", $result);

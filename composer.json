@@ -20,6 +20,7 @@
     "ext-dom": "*",
     "ext-json": "*",
     "ext-libxml": "*",
+    "league/html-to-markdown": "^5.1",
     "orhanerday/open-ai": "^5.3",
     "psr/log": "^3.0",
     "symfony/css-selector": "^7.2",

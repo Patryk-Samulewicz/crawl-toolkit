@@ -67,4 +67,12 @@ enum Language: string
     {
         return array_map(fn($case) => $case->value, self::cases());
     }
+
+    public function mapForbiddenLangToDefault(): self
+    {
+        return match($this) {
+            self::RUSSIAN => self::ENGLISH,
+            default => $this,
+        };
+    }
 } 
