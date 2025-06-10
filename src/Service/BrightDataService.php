@@ -51,6 +51,11 @@ class BrightDataService
      */
     public function fetchUrl(string $url, FetchType $fetchType = FetchType::Html): ?string
     {
+        // Skip fetching content from URLs that match skip patterns
+        if (array_any(self::SKIP_WEBSITES, fn($skip) => str_contains($url, $skip))) {
+            throw new RuntimeException('This site is not supported: ' . $url);
+        }
+
         $this->respectRateLimit();
 
         $headers = [
