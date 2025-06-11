@@ -7,12 +7,17 @@ namespace CrawlToolkit\Service\ContentCleaner;
  */
 class HtmlCleaner extends AbstractContentCleaner
 {
-    private int $maxProcessingTime = 5; // mniejszy limit czasu, bo regex powinien być szybszy
+    private int $maxProcessingTime = 5;
     private array $extractedHeadings = [];
+    private int $maxChunkSize = 500000; // wielkość fragmentu dla dużych dokumentów
 
     public function __construct(string $html)
     {
         parent::__construct($html);
+        // Zwiększ limit rekursji PCRE jeśli to możliwe
+        if (ini_get('pcre.recursion_limit') < 10000) {
+            @ini_set('pcre.recursion_limit', '10000');
+        }
     }
 
     protected function validateContent(): bool
@@ -28,76 +33,164 @@ class HtmlCleaner extends AbstractContentCleaner
     public function clean(): string
     {
         $startTime = microtime(true);
-
-        // Zapisz nagłówki przed usunięciem atrybutów (dla metody extractHeadings)
         $this->extractedHeadings = $this->extractHeadingsWithRegex();
 
-        // 1. Usuń komentarze
-        $this->content = preg_replace('/<!--.*?-->/s', '', $this->content);
+        // Dla bardzo dużych dokumentów, przetwarzaj je fragmentami
+        if (strlen($this->content) > $this->maxChunkSize * 2) {
+            return $this->processLargeHtml($startTime);
+        }
 
-        // 2. Usuń skrypty i style (kompletne bloki)
-        $this->content = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $this->content);
-        $this->content = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $this->content);
+        // Standardowe przetwarzanie z zabezpieczeniem przed null
+        $this->content = $this->safeRegexReplace('/<!--.*?-->/s', '', $this->content);
+        $this->content = $this->safeRegexReplace('/<script\b[^>]*>.*?<\/script>/is', '', $this->content);
+        $this->content = $this->safeRegexReplace('/<style\b[^>]*>.*?<\/style>/is', '', $this->content);
 
-        // 3. Usuń inne niechciane elementy
-        $tags = ['img', 'svg', 'path', 'picture', 'source', 'video', 'audio', 'iframe', 'canvas', 'noscript', 'object', 'embed'];
+        // Rozszerzona lista tagów do usunięcia - dodane formularze i elementy interaktywne
+        $tags = [
+            'img', 'svg', 'path', 'picture', 'source', 'video', 'audio', 'iframe',
+            'canvas', 'noscript', 'object', 'embed', 'form', 'input', 'select',
+            'button', 'textarea', 'option', 'fieldset', 'label', 'datalist'
+        ];
+
         foreach ($tags as $tag) {
             if (microtime(true) - $startTime > $this->maxProcessingTime) break;
-            $this->content = preg_replace("/<{$tag}[^>]*>.*?<\/{$tag}>/is", '', $this->content);
-            $this->content = preg_replace("/<{$tag}[^>]*\/?>/is", '', $this->content);
+            $this->content = $this->safeRegexReplace("/<{$tag}[^>]*>.*?<\/{$tag}>/is", '', $this->content);
+            $this->content = $this->safeRegexReplace("/<{$tag}[^>]*\/?>/is", '', $this->content);
         }
 
-        // 4. Usuń wszystkie atrybuty ze wszystkich tagów
-        $this->content = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*>/is', '<$1>', $this->content);
+        $this->content = $this->safeRegexReplace('/<([a-z][a-z0-9]*)\b[^>]*>/is', '<$1>', $this->content);
 
-        // 5. Usuń puste tagi
-        for ($i = 0; $i < 2; $i++) { // Ograniczona liczba iteracji
+        for ($i = 0; $i < 2; $i++) {
             if (microtime(true) - $startTime > $this->maxProcessingTime) break;
             $prevContent = $this->content;
-            $this->content = preg_replace('/<([a-z][a-z0-9]*(?:\:[a-z][a-z0-9]*)?)>\s*<\/\\1>/is', '', $this->content);
-            if ($prevContent === $this->content) break; // Jeśli nie było zmian, przerwij
+            $this->content = $this->safeRegexReplace('/<([a-z][a-z0-9]*(?:\:[a-z][a-z0-9]*)?)>\s*<\/\\1>/is', '', $this->content);
+            if ($prevContent === $this->content) break;
         }
 
-        // 6. Usuń zbędne przestrzenie
-        $this->content = preg_replace('/\s{2,}/s', ' ', $this->content);
+        $this->content = $this->safeRegexReplace('/\s{2,}/s', ' ', $this->content);
         $this->content = trim($this->content);
-
-        // Zachowaj tylko najważniejsze tagi w przypadku bardzo dużych tekstów
-        if (strlen($this->content) > 1000000) { // ~1MB
-            $this->content = $this->getImportantContent();
-        }
 
         return $this->content;
     }
 
     /**
-     * Extracts only important content when HTML is too large
+     * Przetwarza pojedynczy fragment HTML
      */
-    private function getImportantContent(): string
+    private function processHtmlChunk(string $chunk): string
     {
-        $result = '';
+        $chunk = $this->safeRegexReplace('/<!--.*?-->/s', '', $chunk);
 
-        // Wyodrębnienie głównej treści (body lub article)
-        if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $this->content, $matches)) {
-            $content = $matches[1];
-        } else {
-            $content = $this->content;
+        // Rozszerzona lista tagów do usunięcia dla fragmentów
+        $tags = [
+            'img', 'svg', 'path', 'picture', 'source', 'iframe',
+            'form', 'input', 'select', 'button', 'textarea',
+            'option', 'fieldset', 'label'
+        ];
+
+        foreach ($tags as $tag) {
+            $chunk = $this->safeRegexReplace("/<{$tag}[^>]*>.*?<\/{$tag}>/is", '', $chunk);
+            $chunk = $this->safeRegexReplace("/<{$tag}[^>]*\/?>/is", '', $chunk);
         }
 
-        // Wyciągnij tylko paragrafy, nagłówki i listy
-        preg_match_all('/<(h[1-6]|p|ul|ol|li)[^>]*>.*?<\/\1>/is', $content, $matches);
-        if (!empty($matches[0])) {
-            $result = implode("\n", $matches[0]);
-        }
+        $chunk = $this->safeRegexReplace('/<([a-z][a-z0-9]*)\b[^>]*>/is', '<$1>', $chunk);
 
-        return $result ?: $this->content;
+        return $chunk;
     }
 
     /**
-     * Extracts all headings (h1-h6) from the HTML content.
-     *
-     * @return array<array{tag: string, text: string}> Array of headings
+     * Przetwarza duże dokumenty HTML fragmentami
      */
+    private function processLargeHtml(float $startTime): string
+    {
+        // Najpierw usuńmy niepotrzebne duże bloki
+        $this->content = $this->safeRegexReplace('/<script\b[^>]*>.*?<\/script>/is', '', $this->content);
+        $this->content = $this->safeRegexReplace('/<style\b[^>]*>.*?<\/style>/is', '', $this->content);
+
+        // Rozdziel dokument na części, które można bezpiecznie przetworzyć
+        $chunks = $this->splitHtmlIntoChunks($this->content);
+        $processedChunks = [];
+
+        foreach ($chunks as $chunk) {
+            if (microtime(true) - $startTime > $this->maxProcessingTime) {
+                // Jeśli przekroczono limit czasu, zachowaj chunk bez przetwarzania
+                $processedChunks[] = $chunk;
+                continue;
+            }
+
+            // Przetwórz chunk
+            $processed = $this->processHtmlChunk($chunk);
+            $processedChunks[] = $processed;
+        }
+
+        // Połącz fragmenty i wykonaj końcowe czyszczenie
+        $result = implode('', $processedChunks);
+        $result = $this->safeRegexReplace('/\s{2,}/s', ' ', $result);
+
+        return trim($result);
+    }
+
+    /**
+     * Dzieli duży dokument HTML na mniejsze fragmenty do przetworzenia
+     */
+    private function splitHtmlIntoChunks(string $html): array
+    {
+        $chunks = [];
+        $len = strlen($html);
+
+        // Jeśli dokument jest mniejszy niż maksymalny rozmiar fragmentu, zwróć go w całości
+        if ($len <= $this->maxChunkSize) {
+            return [$html];
+        }
+
+        // Znajdź punkty podziału przy znacznikach końca elementów
+        $startPos = 0;
+        while ($startPos < $len) {
+            $endPos = min($startPos + $this->maxChunkSize, $len);
+
+            // Jeśli nie doszliśmy do końca, znajdź bezpieczny punkt podziału
+            if ($endPos < $len) {
+                // Znajdź najbliższy znacznik zamykający tag
+                $tmpPos = strrpos(substr($html, $startPos, $endPos - $startPos), '</');
+                if ($tmpPos !== false) {
+                    // Znajdź koniec tagu zamykającego
+                    $tagEndPos = strpos($html, '>', $startPos + $tmpPos);
+                    if ($tagEndPos !== false && $tagEndPos < $endPos + 100) {
+                        $endPos = $tagEndPos + 1;
+                    }
+                }
+            }
+
+            $chunks[] = substr($html, $startPos, $endPos - $startPos);
+            $startPos = $endPos;
+        }
+
+        return $chunks;
+    }
+
+    /**
+     * Bezpieczne wykonanie preg_replace z obsługą błędów
+     */
+    private function safeRegexReplace(string $pattern, string $replacement, string $subject): string
+    {
+        // Sprawdź, czy string jest pusty
+        if ($subject === '') {
+            return '';
+        }
+
+        $result = @preg_replace($pattern, $replacement, $subject);
+
+        // Sprawdź, czy wystąpił błąd
+        if ($result === null) {
+            // Zapisz błąd w logach
+            error_log('PCRE error in HtmlCleaner: ' . preg_last_error_msg());
+
+            // Zastosuj alternatywne podejście lub zwróć oryginalny string
+            return $subject;
+        }
+
+        return $result;
+    }
+
     public function extractHeadings(): array
     {
         if (!empty($this->extractedHeadings)) {
@@ -107,6 +200,9 @@ class HtmlCleaner extends AbstractContentCleaner
         return $this->extractHeadingsWithRegex();
     }
 
+    /**
+     * Ekstrahuje nagłówki używając wyrażeń regularnych
+     */
     private function extractHeadingsWithRegex(): array
     {
         $headings = [];
@@ -127,14 +223,5 @@ class HtmlCleaner extends AbstractContentCleaner
         }
 
         return $headings;
-    }
-
-    /**
-     * Ustawia maksymalny czas przetwarzania w sekundach.
-     */
-    public function setMaxProcessingTime(int $seconds): self
-    {
-        $this->maxProcessingTime = $seconds;
-        return $this;
     }
 }
