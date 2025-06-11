@@ -2,21 +2,17 @@
 
 namespace CrawlToolkit\Service\ContentCleaner;
 
-use Symfony\Component\DomCrawler\Crawler;
-
 /**
- * Service class for cleaning and processing HTML content.
+ * Service class for cleaning and processing HTML content using regex.
  */
 class HtmlCleaner extends AbstractContentCleaner
 {
-    private Crawler $crawler;
-    private int $maxProcessingTime = 30; // maksymalny czas przetwarzania w sekundach
-    private bool $initialized = false;
+    private int $maxProcessingTime = 5; // mniejszy limit czasu, bo regex powinien być szybszy
+    private array $extractedHeadings = [];
 
     public function __construct(string $html)
     {
         parent::__construct($html);
-        $this->crawler = new Crawler();
     }
 
     protected function validateContent(): bool
@@ -24,34 +20,77 @@ class HtmlCleaner extends AbstractContentCleaner
         return !empty($this->content);
     }
 
-    private function initCrawler(): void
-    {
-        if (!$this->initialized) {
-            $this->crawler->addHtmlContent($this->content);
-            $this->initialized = true;
-        }
-    }
-
     /**
-     * Cleans the HTML content by removing unnecessary elements, attributes, and empty tags.
+     * Cleans the HTML content using regular expressions.
      *
      * @return string Cleaned HTML content
      */
     public function clean(): string
     {
         $startTime = microtime(true);
-        $this->initCrawler();
 
-        // Usuń wszystkie niepotrzebne elementy jednym selektorem
-        $this->removeElements();
+        // Zapisz nagłówki przed usunięciem atrybutów (dla metody extractHeadings)
+        $this->extractedHeadings = $this->extractHeadingsWithRegex();
 
-        // Usuń atrybuty, ale przerwij jeśli przekroczy limit czasu
-        $this->removeAttributes($startTime);
+        // 1. Usuń komentarze
+        $this->content = preg_replace('/<!--.*?-->/s', '', $this->content);
 
-        // Usuń puste tagi z limitem czasu
-        $this->removeEmptyTags($startTime);
+        // 2. Usuń skrypty i style (kompletne bloki)
+        $this->content = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $this->content);
+        $this->content = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $this->content);
 
-        return $this->crawler->html();
+        // 3. Usuń inne niechciane elementy
+        $tags = ['img', 'svg', 'path', 'picture', 'source', 'video', 'audio', 'iframe', 'canvas', 'noscript', 'object', 'embed'];
+        foreach ($tags as $tag) {
+            if (microtime(true) - $startTime > $this->maxProcessingTime) break;
+            $this->content = preg_replace("/<{$tag}[^>]*>.*?<\/{$tag}>/is", '', $this->content);
+            $this->content = preg_replace("/<{$tag}[^>]*\/?>/is", '', $this->content);
+        }
+
+        // 4. Usuń wszystkie atrybuty ze wszystkich tagów
+        $this->content = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*>/is', '<$1>', $this->content);
+
+        // 5. Usuń puste tagi
+        for ($i = 0; $i < 2; $i++) { // Ograniczona liczba iteracji
+            if (microtime(true) - $startTime > $this->maxProcessingTime) break;
+            $prevContent = $this->content;
+            $this->content = preg_replace('/<([a-z][a-z0-9]*(?:\:[a-z][a-z0-9]*)?)>\s*<\/\\1>/is', '', $this->content);
+            if ($prevContent === $this->content) break; // Jeśli nie było zmian, przerwij
+        }
+
+        // 6. Usuń zbędne przestrzenie
+        $this->content = preg_replace('/\s{2,}/s', ' ', $this->content);
+        $this->content = trim($this->content);
+
+        // Zachowaj tylko najważniejsze tagi w przypadku bardzo dużych tekstów
+        if (strlen($this->content) > 1000000) { // ~1MB
+            $this->content = $this->getImportantContent();
+        }
+
+        return $this->content;
+    }
+
+    /**
+     * Extracts only important content when HTML is too large
+     */
+    private function getImportantContent(): string
+    {
+        $result = '';
+
+        // Wyodrębnienie głównej treści (body lub article)
+        if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $this->content, $matches)) {
+            $content = $matches[1];
+        } else {
+            $content = $this->content;
+        }
+
+        // Wyciągnij tylko paragrafy, nagłówki i listy
+        preg_match_all('/<(h[1-6]|p|ul|ol|li)[^>]*>.*?<\/\1>/is', $content, $matches);
+        if (!empty($matches[0])) {
+            $result = implode("\n", $matches[0]);
+        }
+
+        return $result ?: $this->content;
     }
 
     /**
@@ -61,100 +100,33 @@ class HtmlCleaner extends AbstractContentCleaner
      */
     public function extractHeadings(): array
     {
-        $this->initCrawler();
+        if (!empty($this->extractedHeadings)) {
+            return $this->extractedHeadings;
+        }
 
+        return $this->extractHeadingsWithRegex();
+    }
+
+    private function extractHeadingsWithRegex(): array
+    {
         $headings = [];
-        $nodes = $this->crawler->filter('h1, h2, h3, h4, h5, h6');
-        if ($nodes->count() > 0) {
-            $nodes->each(function (Crawler $node) use (&$headings) {
-                $headings[] = [
-                    'tag' => $node->nodeName(),
-                    'text' => trim($node->text()),
-                ];
-            });
+        $pattern = '/<(h[1-6])[^>]*>(.*?)<\/\1>/is';
+
+        if (preg_match_all($pattern, $this->content, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $tag = strtolower($match[1]);
+                $text = trim(strip_tags($match[2]));
+
+                if (!empty($text)) {
+                    $headings[] = [
+                        'tag' => $tag,
+                        'text' => $text,
+                    ];
+                }
+            }
         }
+
         return $headings;
-    }
-
-    private function removeElements(): void
-    {
-        $nodes = $this->crawler->filter('img, a, script, style, path, svg, symbol, link, picture, source');
-        if ($nodes->count() > 0) {
-            // Zbierz węzły do usunięcia w tablicy
-            $nodesToRemove = [];
-            $nodes->each(function (Crawler $node) use (&$nodesToRemove) {
-                if ($node->getNode(0) && $node->getNode(0)->parentNode) {
-                    $nodesToRemove[] = $node->getNode(0);
-                }
-            });
-
-            // Usuń węzły w odwrotnej kolejności
-            foreach (array_reverse($nodesToRemove) as $node) {
-                if ($node->parentNode) {
-                    $node->parentNode->removeChild($node);
-                }
-            }
-        }
-    }
-
-    private function removeAttributes(float $startTime): void
-    {
-        $nodes = $this->crawler->filter('*');
-        if ($nodes->count() > 0) {
-            $nodes->each(function (Crawler $node) use ($startTime) {
-                // Przerwij jeśli przekroczono limit czasu
-                if (microtime(true) - $startTime > $this->maxProcessingTime) {
-                    return false;
-                }
-
-                $element = $node->getNode(0);
-                if ($element && $element->hasAttributes()) {
-                    while ($element->attributes->length) {
-                        $element->removeAttribute($element->attributes->item(0)->name);
-                    }
-                }
-
-                return true;
-            });
-        }
-    }
-
-    private function removeEmptyTags(float $startTime): void
-    {
-        // Przetwarzanie wielokrotne, od wewnątrz na zewnątrz
-        for ($i = 0; $i < 3; $i++) { // Ograniczenie liczby iteracji
-            if (microtime(true) - $startTime > $this->maxProcessingTime) {
-                break;
-            }
-
-            $nodes = $this->crawler->filter('*');
-            $nodesToRemove = [];
-
-            $nodes->each(function (Crawler $node) use (&$nodesToRemove, $startTime) {
-                if (microtime(true) - $startTime > $this->maxProcessingTime) {
-                    return false;
-                }
-
-                if (trim($node->text()) === '' && !$node->children()->count() &&
-                    $node->getNode(0) && $node->getNode(0)->parentNode) {
-                    $nodesToRemove[] = $node->getNode(0);
-                }
-
-                return true;
-            });
-
-            // Jeśli nie ma więcej pustych tagów, przerwij pętlę
-            if (empty($nodesToRemove)) {
-                break;
-            }
-
-            // Usuń zebrane puste węzły
-            foreach ($nodesToRemove as $node) {
-                if ($node->parentNode) {
-                    $node->parentNode->removeChild($node);
-                }
-            }
-        }
     }
 
     /**
