@@ -113,6 +113,8 @@ class HtmlCleaner extends AbstractContentCleaner
                         $element->removeAttribute($element->attributes->item(0)->name);
                     }
                 }
+
+                return true;
             });
         }
     }
@@ -137,6 +139,8 @@ class HtmlCleaner extends AbstractContentCleaner
                     $node->getNode(0) && $node->getNode(0)->parentNode) {
                     $nodesToRemove[] = $node->getNode(0);
                 }
+
+                return true;
             });
 
             // Jeśli nie ma więcej pustych tagów, przerwij pętlę
