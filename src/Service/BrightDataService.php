@@ -79,7 +79,7 @@ class BrightDataService
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => 320,
+            CURLOPT_TIMEOUT => 60,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
 
