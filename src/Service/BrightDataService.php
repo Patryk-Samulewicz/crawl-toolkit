@@ -79,7 +79,9 @@ class BrightDataService
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => 60,
+            CURLOPT_TIMEOUT => 120,
+            CURLOPT_CONNECTTIMEOUT => 20,     // Timeout połączenia
+            CURLOPT_NOSIGNAL => 1,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
 
@@ -143,7 +145,9 @@ class BrightDataService
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => 180,
+            CURLOPT_TIMEOUT => 120,
+            CURLOPT_CONNECTTIMEOUT => 20,     // Timeout połączenia
+            CURLOPT_NOSIGNAL => 1,
             CURLOPT_SSL_VERIFYPEER => true,
         ]);
 
