@@ -197,6 +197,9 @@ class BrightDataService
                     return $this->getTopUrls($keyword, $maxResults, $countryCode, $nextPageUrl, $urls);
                 }
 
+                //strip slashes from URLs
+                $urls = array_map('stripslashes', $urls);
+
                 // Filter out URLs that match any of the skip patterns
                 $urls = array_filter($urls, function ($url) {
                     foreach (self::SKIP_WEBSITES as $skip) {
