@@ -58,7 +58,24 @@ class HtmlCleaner extends AbstractContentCleaner
             $this->content = $this->safeRegexReplace("/<{$tag}[^>]*\/?>/is", '', $this->content);
         }
 
-        $this->content = $this->safeRegexReplace('/<([a-z][a-z0-9]*)\b[^>]*>/is', '<$1>', $this->content);
+        // Usuwanie wszystkich atrybutów z wyjątkiem id i class (wersja z callbackiem)
+        $this->content = preg_replace_callback(
+            '/<([a-z][a-z0-9]*)\b([^>]*)>/is',
+            function ($matches) {
+                $tag = $matches[1];
+                $attrs = $matches[2];
+                $id = '';
+                $class = '';
+                if (preg_match('/\s(id)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>"]+)/i', $attrs, $idMatch)) {
+                    $id = ' id=' . $idMatch[2];
+                }
+                if (preg_match('/\s(class)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>"]+)/i', $attrs, $classMatch)) {
+                    $class = ' class=' . $classMatch[2];
+                }
+                return "<{$tag}{$id}{$class}>";
+            },
+            $this->content
+        );
 
         for ($i = 0; $i < 2; $i++) {
             if (microtime(true) - $startTime > $this->maxProcessingTime) break;
@@ -92,7 +109,24 @@ class HtmlCleaner extends AbstractContentCleaner
             $chunk = $this->safeRegexReplace("/<{$tag}[^>]*\/?>/is", '', $chunk);
         }
 
-        $chunk = $this->safeRegexReplace('/<([a-z][a-z0-9]*)\b[^>]*>/is', '<$1>', $chunk);
+        // Usuwanie wszystkich atrybutów z wyjątkiem id i class (wersja z callbackiem)
+        $chunk = preg_replace_callback(
+            '/<([a-z][a-z0-9]*)\b([^>]*)>/is',
+            function ($matches) {
+                $tag = $matches[1];
+                $attrs = $matches[2];
+                $id = '';
+                $class = '';
+                if (preg_match('/\s(id)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>"]+)/i', $attrs, $idMatch)) {
+                    $id = ' id=' . $idMatch[2];
+                }
+                if (preg_match('/\s(class)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>"]+)/i', $attrs, $classMatch)) {
+                    $class = ' class=' . $classMatch[2];
+                }
+                return "<{$tag}{$id}{$class}>";
+            },
+            $chunk
+        );
 
         return $chunk;
     }
