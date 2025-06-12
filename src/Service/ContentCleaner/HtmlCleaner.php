@@ -49,7 +49,7 @@ class HtmlCleaner extends AbstractContentCleaner
         $tags = [
             'img', 'svg', 'path', 'picture', 'source', 'video', 'audio', 'iframe',
             'canvas', 'noscript', 'object', 'embed', 'form', 'input', 'select',
-            'button', 'textarea', 'option', 'fieldset', 'label', 'datalist'
+            'button', 'textarea', 'option', 'fieldset', 'datalist'
         ];
 
         foreach ($tags as $tag) {
@@ -84,7 +84,7 @@ class HtmlCleaner extends AbstractContentCleaner
         $tags = [
             'img', 'svg', 'path', 'picture', 'source', 'iframe',
             'form', 'input', 'select', 'button', 'textarea',
-            'option', 'fieldset', 'label'
+            'option', 'fieldset'
         ];
 
         foreach ($tags as $tag) {

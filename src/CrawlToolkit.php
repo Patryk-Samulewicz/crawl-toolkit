@@ -4,10 +4,12 @@ namespace CrawlToolkit;
 
 use CrawlToolkit\Enum\FetchType;
 use CrawlToolkit\Enum\Language;
+use CrawlToolkit\Enum\ParserFormat;
 use CrawlToolkit\Service\BrightDataService;
 use CrawlToolkit\Service\ContentCleaner\ContentCleanerFactory;
 use CrawlToolkit\Service\ContentCleaner\HtmlCleaner;
 use CrawlToolkit\Service\ContentCleaner\MarkdownCleaner;
+use CrawlToolkit\Service\ContentParser\MarkdownParser;
 use CrawlToolkit\Service\OpenAiService;
 use CrawlToolkit\Service\UrlFetchService;
 use Exception;
@@ -461,6 +463,33 @@ final readonly class CrawlToolkit
         }
     }
 
+    /**
+     * Parses Markdown content to HTML format.
+     * @param string $markdown
+     * @return string
+     */
+    public function parseMarkdownToHtml(string $markdown): string
+    {
+        try {
+            return new MarkdownParser($markdown)->parseToFormat(ParserFormat::Html);
+        } catch (Exception $e) {
+            throw new RuntimeException('Error parsing Markdown to HTML: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Parses HTML content to Markdown format.
+     * @param string $html
+     * @return string
+     */
+    public function parseHtmlToMarkdown(string $html): string
+    {
+        try {
+            return new MarkdownParser($html)->parseToFormat(ParserFormat::Markdown);
+        } catch (Exception $e) {
+            throw new RuntimeException('Error parsing HTML to Markdown: ' . $e->getMessage());
+        }
+    }
 
     /**
      * Returns list of available languages
