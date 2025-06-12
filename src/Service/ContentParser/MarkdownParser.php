@@ -15,7 +15,7 @@ class MarkdownParser extends AbstractContentParser
     public function parseToFormat(ParserFormat $format): string
     {
         if ($format === ParserFormat::Markdown) {
-            return $this->getContent();
+            throw new \InvalidArgumentException("Markdown content cannot be parsed to HTML format.");
         }
 
         if ($format === ParserFormat::Html) {

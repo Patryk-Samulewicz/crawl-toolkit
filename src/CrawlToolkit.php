@@ -9,6 +9,7 @@ use CrawlToolkit\Service\BrightDataService;
 use CrawlToolkit\Service\ContentCleaner\ContentCleanerFactory;
 use CrawlToolkit\Service\ContentCleaner\HtmlCleaner;
 use CrawlToolkit\Service\ContentCleaner\MarkdownCleaner;
+use CrawlToolkit\Service\ContentParser\HtmlParser;
 use CrawlToolkit\Service\ContentParser\MarkdownParser;
 use CrawlToolkit\Service\OpenAiService;
 use CrawlToolkit\Service\UrlFetchService;
@@ -485,7 +486,7 @@ final readonly class CrawlToolkit
     public function parseHtmlToMarkdown(string $html): string
     {
         try {
-            return new MarkdownParser($html)->parseToFormat(ParserFormat::Markdown);
+            return new HtmlParser($html)->parseToFormat(ParserFormat::Markdown);
         } catch (Exception $e) {
             throw new RuntimeException('Error parsing HTML to Markdown: ' . $e->getMessage());
         }
