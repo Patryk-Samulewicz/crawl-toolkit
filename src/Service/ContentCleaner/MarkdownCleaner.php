@@ -37,23 +37,27 @@ class MarkdownCleaner extends AbstractContentCleaner
     public function clean(): string
     {
         $markdown = $this->content;
+        if (!is_string($markdown) || empty($markdown)) {
+            return '';
+        }
 
         // Usuwanie sekcji HTML
-        $markdown = preg_replace('/<head.*?>.*?<\/head>/is', '', $markdown); // Usuwanie sekcji head
-        $markdown = preg_replace('/<script.*?>.*?<\/script>/is', '', $markdown); // Usuwanie skryptów
-        $markdown = preg_replace('/<style.*?>.*?<\/style>/is', '', $markdown); // Usuwanie stylów CSS
-        $markdown = preg_replace('/<nav.*?>.*?<\/nav>/is', '', $markdown); // Usuwanie nawigacji
-        $markdown = preg_replace('/<footer.*?>.*?<\/footer>/is', '', $markdown); // Usuwanie stopki
-        $markdown = preg_replace('/<header.*?>.*?<\/header>/is', '', $markdown); // Usuwanie nagłówka
-        $markdown = preg_replace('/<aside.*?>.*?<\/aside>/is', '', $markdown); // Usuwanie bocznych paneli
+        $markdown = preg_replace('/<head.*?>.*?<\/head>/is', '', $markdown);
+        $markdown = preg_replace('/<script.*?>.*?<\/script>/is', '', $markdown);
+        $markdown = preg_replace('/<style.*?>.*?<\/style>/is', '', $markdown);
+        $markdown = preg_replace('/<nav.*?>.*?<\/nav>/is', '', $markdown);
+        $markdown = preg_replace('/<footer.*?>.*?<\/footer>/is', '', $markdown);
+        $markdown = preg_replace('/<header.*?>.*?<\/header>/is', '', $markdown);
+        $markdown = preg_replace('/<aside.*?>.*?<\/aside>/is', '', $markdown);
 
         // Usuwanie komentarzy HTML
-        $markdown = preg_replace('/<!--.*?-->/s', '', $markdown);
+        $markdown = is_string($markdown) ? preg_replace('/<!--.*?-->/s', '', $markdown) : '';
+        if (!is_string($markdown)) return '';
 
         // Usuwanie innych tagów HTML z zachowaniem ich zawartości
-        $markdown = preg_replace('/<[^>]*script.*?>.*?<\/script>/is', '', $markdown); // Dodatkowe usunięcie skryptów (różne warianty)
-        $markdown = preg_replace('/<div[^>]*class=["\'](?:.*?(?:menu|sidebar|widget|footer|header|navigation|cookie|popup|banner|ad).*?)["\'][^>]*>.*?<\/div>/is', '', $markdown); // Usuwanie divów z klasami wskazującymi na treści poboczne
-        $markdown = preg_replace('/<svg.*?<\/svg>/is', '', $markdown); // Usuwanie SVG
+        $markdown = preg_replace('/<[^>]*script.*?>.*?<\/script>/is', '', $markdown);
+        $markdown = preg_replace('/<div[^>]*class=["\'](?:.*?(?:menu|sidebar|widget|footer|header|navigation|cookie|popup|banner|ad).*?)["\'][^>]*>.*?<\/div>/is', '', $markdown);
+        $markdown = preg_replace('/<svg.*?<\/svg>/is', '', $markdown);
 
         // Usuwanie atrybutów z pozostałych tagów
         $markdown = preg_replace('/<([a-z][a-z0-9]*)[^>]*>/is', '<$1>', $markdown);
@@ -67,29 +71,30 @@ class MarkdownCleaner extends AbstractContentCleaner
         // Usuwanie pozostałych tagów HTML
         $markdown = preg_replace('/<[^>]+>/', '', $markdown);
 
-        $markdown = preg_replace('/\[.*?\]\(.*?\)/', '', $markdown);
-
         // Dekodowanie encji HTML
         $markdown = html_entity_decode($markdown, ENT_QUOTES | ENT_HTML5);
 
-        // Usuwanie obrazów i linków w markdown
-        $markdown = preg_replace('/!\[.*?\]\(.*?\)/', '', $markdown);
-        $markdown = preg_replace('/\[(.*?)\]\(.*?\)/', '$1', $markdown); // Zachowujemy tekst linku
+        // Usuwanie obrazów i linków w markdown - kolejność jest ważna
+        $markdown = preg_replace('/!\[.*?\]\(.*?\)/', '', $markdown); // Najpierw usuwamy obrazy
+        $markdown = preg_replace('/\[.*?\]\(.*?\)/', '', $markdown); // Potem usuwamy linki (całkowicie)
 
         // Usuwanie formatowania
         $markdown = preg_replace('/^#{1,6}\s+/m', '', $markdown);
         $markdown = preg_replace('/(\*\*|__)(.*?)(\*\*|__)/m', '$2', $markdown);
         $markdown = preg_replace('/(\*|_)(.*?)(\*|_)/m', '$2', $markdown);
-        $markdown = preg_replace('/```.*?```/s', '', $markdown); // Usuwanie bloków kodu
+        $markdown = preg_replace('/```.*?```/s', '', $markdown);
         $markdown = preg_replace('/`(.*?)`/m', '$1', $markdown);
+
+        // Usuwanie wielu powtórzeń wykrzyknika
+        $markdown = preg_replace('/!{2,}/', '', $markdown);
 
         // Czyszczenie znaków
         $markdown = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $markdown);
         $markdown = str_replace('"', "'", $markdown);
-        $markdown = preg_replace('/\\\+/', ' ', $markdown); // Zamieniamy wszystkie backslashe na spacje
+        $markdown = preg_replace('/\\\+/', ' ', $markdown);
 
         // Normalizacja białych znaków
-        $markdown = preg_replace('/\s+/', ' ', $markdown); // Najpierw wszystkie ciągi białych znaków na pojedyncze spacje
+        $markdown = preg_replace('/\s+/', ' ', $markdown);
         $markdown = preg_replace('/\n{3,}/', "\n\n", $markdown);
 
         // Przetwarzanie linii
