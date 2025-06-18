@@ -20,6 +20,7 @@ enum Language: string
     case DUTCH = 'dutch';
     case RUSSIAN = 'russian';
     case HUNGARIAN = 'hungarian';
+    case GREEK = 'greek';
 
 
     public function getCountryCode(): string
@@ -39,6 +40,7 @@ enum Language: string
             self::DUTCH => 'nl',
             self::RUSSIAN => 'ru',
             self::HUNGARIAN => 'hu',
+            self::GREEK => 'gr',
         };
     }
 
@@ -59,6 +61,7 @@ enum Language: string
             'nl' => self::DUTCH,
             'ru' => self::RUSSIAN,
             'hu' => self::HUNGARIAN,
+            'gr' => self::GREEK,
             default => null,
         };
     }
