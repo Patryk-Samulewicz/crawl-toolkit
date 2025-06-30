@@ -130,7 +130,7 @@ class BrightDataService
             'Content-Type: application/json',
         ];
 
-        $url = $url ?? 'https://www.google.com/search?q=' . urlencode($keyword);
+        $url = $url ?? 'https://www.google.com/search?q=' . rawurlencode($keyword);
         $url .= '&gl=' . $countryCode . '&brd_json=1';
 
         $payload = [
