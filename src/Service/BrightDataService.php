@@ -130,6 +130,10 @@ class BrightDataService
             'Content-Type: application/json',
         ];
 
+        if (!str_starts_with($keyword, '"') && !str_ends_with($keyword, '"')) {
+            $keyword = '"' . $keyword . '"';
+        }
+
         $url = $url ?? 'https://www.google.com/search?q=' . rawurlencode($keyword);
         $url .= '&gl=' . $countryCode . '&brd_json=1';
 
