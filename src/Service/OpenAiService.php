@@ -87,7 +87,7 @@ class OpenAiService
 
         $response = $this->callOpenAi(
             $messages,
-            'gpt-4.1-2025-04-14',
+            'gpt-5.2',
             0.7,
             16000
         );
@@ -140,7 +140,7 @@ class OpenAiService
 
         $response = $this->callOpenAi(
             $messages,
-            'gpt-4.1-2025-04-14',
+            'gpt-5.2',
             0.7,
             16000
         );
@@ -202,7 +202,7 @@ class OpenAiService
      */
     public function callOpenAi(
         array  $messages,
-        string $model = 'gpt-4',
+        string $model = 'gpt-5.2',
         float  $temperature = 0.7,
         int    $maxTokens = 10000
     ): ?string
